@@ -1,0 +1,152 @@
+version: '3.6'
+services:
+
+### NGINX Server #########################################
+#    nginx:
+#      build:
+#        context: ./nginx
+#        args:
+#          - CHANGE_SOURCE=${CHANGE_SOURCE}
+#          - PHP_UPSTREAM_CONTAINER=${NGINX_PHP_UPSTREAM_CONTAINER}
+#          - PHP_UPSTREAM_PORT=${NGINX_PHP_UPSTREAM_PORT}
+#          - http_proxy
+#          - https_proxy
+#          - no_proxy
+#      volumes:
+#        - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+#        - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+#        - ${NGINX_SITES_PATH}:/etc/nginx/sites-available
+#        - ${NGINX_SSL_PATH}:/etc/nginx/ssl
+#      ports:
+#        - "${NGINX_HOST_HTTP_PORT}:80"
+#        - "${NGINX_HOST_HTTPS_PORT}:443"
+#        - "${VARNISH_BACKEND_PORT}:81"
+#      depends_on:
+#        - php-fpm
+#      networks:
+#        - frontend
+#        - backend
+
+### PostgreSQL ###########################################
+    db_postgres:
+      container_name: db_postgres
+      build:
+        context: ./postgres
+        dockerfile: Dockerfile
+      environment:
+        POSTGRES_PASSWORD: mysecretpassword
+        POSTGRES_USER: postgres
+        POSTGRES_DB: projector_hw4
+      ports:
+        - 0.0.0.0:5438:5432
+      volumes:
+        - db-data:/var/lib/postgresql/data
+        - ./postgres/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d
+      networks:
+        - default
+
+### Redis ################################################
+    redis:
+      container_name: redis
+      image: redis:alpine
+      environment:
+        - ALLOW_EMPTY_PASSWORD=yes
+      ports:
+        - '6379:6379'
+      volumes:
+        - redis-data:/data
+      networks:
+        - default
+
+
+
+### ITG ###############
+    telegraf:
+      image: telegraf:1.15-alpine
+      volumes:
+        - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - /var:/var:ro
+        - /sys:/rootfs/sys:ro
+        - /proc:/rootfs/proc:ro
+        - /etc:/rootfs/etc:ro
+      depends_on:
+        - influxdb
+      links:
+        - influxdb
+      ports:
+        - '127.0.0.1:8125:8125/udp'
+      networks:
+        - default
+
+    influxdb:
+      image: influxdb:1.8-alpine
+      env_file: configuration.env
+      ports:
+        - '127.0.0.1:8086:8086'
+      volumes:
+        - ./:/imports
+        - influxdb_data:/var/lib/influxdb
+      networks:
+        - default
+
+    grafana:
+      image: grafana/grafana:7.2.1
+      depends_on:
+        - influxdb
+      env_file: configuration.env
+      links:
+        - influxdb
+      ports:
+        - '127.0.0.1:3030:3000'
+      volumes:
+        - grafana_data:/var/lib/grafana
+        - ./grafana/provisioning/:/etc/grafana/provisioning/
+        - ./grafana/dashboards/:/var/lib/grafana/dashboards/
+      networks:
+        - default
+
+
+    king_size_service:
+      container_name: king_size_service
+      build:
+        context: .
+        dockerfile: Dockerfile
+      ports:
+        - "0.0.0.0:4888:4888"
+      volumes:
+        - .:/app/
+
+      environment:
+        ENV_NAME: local
+        # app settings
+        APP_HOST: 0.0.0.0
+        APP_PORT: 4888
+        LOG_LEVEL: DEBUG
+
+        # postgres settings
+        POSTGRES_PASSWORD: mysecretpassword
+        POSTGRES_USER: postgres
+        POSTGRES_DB: projector_hw4
+        POSTGRES_PORT: 5432
+        POSTGRES_HOST: db_postgres
+
+        # redis settings. Required only if AUTH_METHOD equals 'redis'
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+        CACHE_TIME: 3600  # in seconds. Default is 600 sec (10 min)
+
+      links:
+        - redis
+        - db_postgres
+      depends_on:
+        - redis
+        - db_postgres
+      networks:
+        - default
+
+volumes:
+  db-data:
+  redis-data:
+  influxdb_data:
+  grafana_data:
