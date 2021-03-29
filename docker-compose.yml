@@ -123,6 +123,7 @@ services:
         APP_HOST: 0.0.0.0
         APP_PORT: 4888
         LOG_LEVEL: DEBUG
+        USE_PROBABILISTIC_CACHE: "false"
 
         # postgres settings
         POSTGRES_PASSWORD: mysecretpassword

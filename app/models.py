@@ -4,7 +4,7 @@ from datetime import datetime
 import peewee_async
 from peewee import (
     Model, Proxy, SmallIntegerField, CharField, TextField,
-    DateTimeField, DoesNotExist, ProgrammingError
+    DateTimeField, DoesNotExist, ProgrammingError, BigIntegerField, BigAutoField
 )
 
 db_proxy = Proxy()
@@ -45,7 +45,7 @@ class BaseModel(Model):
 
 
 class Article(BaseModel):
-    article_id = CharField(null=False, unique=True, primary_key=True)
+    article_id = BigAutoField(primary_key=True)
     status = SmallIntegerField(null=False, index=True)
     name = TextField(null=False)
     body = TextField(null=False)

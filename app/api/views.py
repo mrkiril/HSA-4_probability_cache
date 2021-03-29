@@ -6,15 +6,16 @@ import random
 import string
 import uuid
 from functools import partial
-
+from typing import Optional
 
 import aiohttp_jinja2
 
 import psycopg2
 from aiohttp import web
+from peewee import DoesNotExist
 
 from app.models import ExtendedDBManager, Article
-from app.serializers import ArticlesSerializer
+from app.serializers import ArticlesSerializer, ArticlesListSerializer
 from settings import conf
 
 
@@ -26,47 +27,46 @@ def get_random_string(n):
 
 
 class ArticleHandler:
-    def __init__(self, db):
+    def __init__(self, db, use_probabilistic_cache):
         self.db = db
+        self.use_probabilistic_cache = use_probabilistic_cache
 
-    async def get(self, article_id) -> ArticlesSerializer:
+    async def get(self, article_id) -> Optional[ArticlesSerializer]:
         query = (
             Article.select().where(Article.article_id == article_id)
         )
         article = await self.db.get_or_none_async(query)
-        return ArticlesSerializer.from_orm(article)
+        if article:
+            return ArticlesSerializer.from_orm(article)
 
-
-
-class HealthzCheck(web.View):
-    async def get(self):
-        # Everything is ok
-        return web.HTTPOk()
-
-
-class ArticleView(web.View):
-    @aiohttp_jinja2.template("main_page.jinja2")
-    async def get(self):
-        db: ExtendedDBManager = self.request.app["db"]
-        article_id = self.request.match_info["article_id"]
-
-        # query = (
-        #     Article.select().where(Article.article_id == article_id)
-        # )
-        # article = await db.get_or_none_async(query)
-        art_handler = ArticleHandler(db=db)
-        article: ArticlesSerializer = await art_handler.get(article_id=article_id)
-        return web.json_response(text=article.json())
-
-    async def post(self):
-        db: ExtendedDBManager = self.request.app["db"]
-        new_article = Article(
-            article_id=str(uuid.uuid4()),
+    async def create(self, db):
+        new_article = await db.create(Article,
             status=0,
             name=get_random_string(15),
             body=get_random_string(100),
         )
-        await db.create(new_article)
+        return new_article
+
+
+class ArticleView(web.View):
+    # @aiohttp_jinja2.template("main_page.jinja2")
+    async def get(self):
+        db: ExtendedDBManager = self.request.app["db"]
+        use_probabilistic_cache: bool = self.request.app["conf"].use_probabilistic_cache
+        article_id = self.request.match_info["article_id"]
+
+        art_handler = ArticleHandler(db=db, use_probabilistic_cache=use_probabilistic_cache)
+        await art_handler.create(db=db)
+        article: ArticlesSerializer = await art_handler.get(article_id=article_id)
+        if article:
+            return web.json_response(text=article.json())
+        raise web.HTTPNotFound()
+
+    async def post(self):
+        db: ExtendedDBManager = self.request.app["db"]
+        art_handler = ArticleHandler(db=db)
+        article: ArticlesSerializer = await art_handler.create(db=db)
+        raise web.HTTPOk()
 
 
 class ArticlesView(web.View):
@@ -75,8 +75,20 @@ class ArticlesView(web.View):
         query = (
             Article.select().limit(100)
         )
-        articles = await db.execute(query)
-        return web.json_response([art.serialize() for art in articles])
+        try:
+            articles = await db.execute(query)
+        except (DoesNotExist, TypeError):
+            articles = None
+        if articles is None:
+            raise web.HTTPNotFound()
+
+        return web.json_response(text=ArticlesListSerializer(articles=[art for art in articles]).json())
+
+
+class HealthzCheck(web.View):
+    async def get(self):
+        # Everything is ok
+        return web.HTTPOk()
 
 
 class Favicon(web.View):

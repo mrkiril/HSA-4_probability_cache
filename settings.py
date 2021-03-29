@@ -25,13 +25,14 @@ class Config:
         self.app_host = os.environ.get("APP_HOST", "0.0.0.0")
         self.app_port = int(os.environ.get("APP_PORT", "3800"))
         self.MAX_BODY_SIZE = os.environ.get("MAX_BODY_SIZE", 100 * 1024 * 1024)
+        self.use_probabilistic_cache = os.environ.get("USE_PROBABILISTIC_CACHE", "false") == 'true'
 
         self.db_name = os.environ.get("POSTGRES_DB", "db-reface-auth-new")
         self.db_user = os.environ.get("POSTGRES_USER", "master")
         self.db_host = os.environ.get("POSTGRES_HOST", "127.0.0.1")
         self.db_port = os.environ.get("POSTGRES_PORT", "5432")
         self.db_pass = os.environ.get("POSTGRES_PASSWORD", "mysecretpassword")
-        self.postgres_max_connections = int(os.environ.get("POSTGRES_MAX_CONNECTIONS", "5"))
+        self.postgres_max_connections = int(os.environ.get("POSTGRES_MAX_CONNECTIONS", "50"))
 
         self.redis_host = os.environ.get("REDIS_HOST")
         self.redis_port = os.environ.get("REDIS_PORT")

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import sys
+import redis
 
 import aiohttp_jinja2
 import jinja2
@@ -47,6 +48,9 @@ async def on_startup(app):
     logging.config.dictConfig(conf.DEFAULT_LOGGING)
     app["db"] = ExtendedDBManager(init_db(conf))
     app["db"].database.create_tables([Article], safe=True)
+
+    pool = redis.ConnectionPool(max_connections=10000, host=conf.redis_host, port=conf.redis_port)
+    app["redis_cli"] = redis.Redis(connection_pool=pool, socket_timeout=1, socket_connect_timeout=0.1)
 
 
 async def on_cleanup(app):

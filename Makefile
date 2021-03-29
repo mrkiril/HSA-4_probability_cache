@@ -31,28 +31,16 @@ statm:
 	docker-compose exec $(MAIN_SERVICE) bash -c "printf '%(%m-%d %H:%M:%S)T    ' && cat /proc/1/statm"
 
 pidstat:
-	docker-compose exec $(MAIN_SERVICE) bash -c "pidstat -p 1 -r 60 100"
+	docker-compose exec $(MAIN_SERVICE) bash -c "pidstat -p 1 -r 10 100"
 
 psql:
-	docker-compose exec db-reface-auth-new psql -U postgres -d reface-auth
+	docker-compose exec db_postgres psql -U postgres -d projector_hw4
 
 format:
 	isort .
 	python3 -m black -l 100 .
 	python3 -m flake8 -v
 
-pytest: up
-	docker-compose exec $(MAIN_SERVICE) pytest
-	make down
 
-pytest_report: up
-	docker-compose exec $(MAIN_SERVICE) python3 -m pytest --cov-report term-missing --cov=. tests/
-
-drop-db:
-	make down
-	docker volume rm reface-authentication-service_db-data
-
-migrate: up
-	docker-compose exec $(MAIN_SERVICE) python3 -m reface_service_base -c migrate
-
-
+siege:
+	siege -v -t 500 --concurrent=2 --file=urls.txt
