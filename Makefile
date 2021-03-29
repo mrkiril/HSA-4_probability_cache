@@ -43,4 +43,5 @@ format:
 
 
 siege:
-	siege -v -t 500 --concurrent=2 --file=urls.txt
+	#siege -q -b -r 100000 --concurrent=50 --file=urls.txt
+	siege -v -b --concurrent=20 --file=urls.txt

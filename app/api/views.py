@@ -27,20 +27,36 @@ def get_random_string(n):
 
 
 class ArticleHandler:
-    def __init__(self, db, use_probabilistic_cache):
+    def __init__(self, db, redis_cli, use_probabilistic_cache):
         self.db = db
+        self.redis_cli = redis_cli
         self.use_probabilistic_cache = use_probabilistic_cache
 
+    def __get_from_cache(self, article_id):
+        if self.use_probabilistic_cache:
+            print("lalala")
+        cache_article_str = self.redis_cli.get(f"article_{article_id}")
+        if cache_article_str:
+            return json.loads(cache_article_str)
+
+    def __set_art_to_cache(self, obj: ArticlesSerializer):
+        self.redis_cli.set(f"article_{obj.article_id}", str(obj.json()), ex=120)  # 10s
+
     async def get(self, article_id) -> Optional[ArticlesSerializer]:
-        query = (
-            Article.select().where(Article.article_id == article_id)
-        )
+        cache_article_obj: Optional[dict] = self.__get_from_cache(article_id)
+        if cache_article_obj:
+            return ArticlesSerializer(**cache_article_obj)
+
+        query = Article.select().where(Article.article_id == article_id)
         article = await self.db.get_or_none_async(query)
         if article:
-            return ArticlesSerializer.from_orm(article)
+            art = ArticlesSerializer.from_orm(article)
+            self.__set_art_to_cache(art)
+            return art
 
     async def create(self, db):
-        new_article = await db.create(Article,
+        new_article = await db.create(
+            Article,
             status=0,
             name=get_random_string(15),
             body=get_random_string(100),
@@ -49,13 +65,15 @@ class ArticleHandler:
 
 
 class ArticleView(web.View):
-    # @aiohttp_jinja2.template("main_page.jinja2")
     async def get(self):
         db: ExtendedDBManager = self.request.app["db"]
+        redis_cli = self.request.app["redis_cli"]
         use_probabilistic_cache: bool = self.request.app["conf"].use_probabilistic_cache
         article_id = self.request.match_info["article_id"]
 
-        art_handler = ArticleHandler(db=db, use_probabilistic_cache=use_probabilistic_cache)
+        art_handler = ArticleHandler(
+            db=db, redis_cli=redis_cli, use_probabilistic_cache=use_probabilistic_cache
+        )
         await art_handler.create(db=db)
         article: ArticlesSerializer = await art_handler.get(article_id=article_id)
         if article:
