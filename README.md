@@ -1,25 +1,59 @@
-### UP TIG (Telegraf - InfluxDB - Grafana)
-### And services which want to monitoring (nginx mysql redis elasticsearch mongo)
+### Projector HW 4
+### Use probability cache
 ## Usage
-### Development
-
-### Pre-Setting
-
-Off elastic documentation say to up `vm.max_map_count=262144` [look here!](https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#_set_vm_max_map_count_to_at_least_262144)
-check it
 
 ### RUN  services
 ```
 make run
 ``` 
+If you want to use probability cache, 
+set env value `USE_PROBABILISTIC_CACHE: "true"` 
+in `docker-compose.yml`
 
-###To rum ApacheBenchmark set it like [here](https://ourcodeworld.com/articles/read/957/how-to-run-a-stress-test-to-your-apache-server-in-ubuntu-18-04)
+###To rum Siege
 ```
-sudo apt-get install apache2-utils
+make siege
+```
+It will run siege and use urls.txt file in this repo
+
+###Without probabilistic cache:
+```
+Lifting the server siege...
+Transactions:                 141181 hits
+Availability:                 100.00 %
+Elapsed time:                 561.12 secs
+Data transferred:              35.23 MB
+Response time:                  0.00 secs
+Transaction rate:             251.61 trans/sec
+Throughput:                     0.06 MB/sec
+Concurrency:                    1.12
+Successful transactions:      141181
+Failed transactions:               0
+Longest transaction:            0.05
+Shortest transaction:           0.00
 ```
 
-###Run AB for elastic or nginx:
+###Without probabilistic cache:
 ```
-make test_elastic
-make test_nginx
+Transactions:                 451063 hits
+Availability:                 100.00 %
+Elapsed time:                2507.76 secs
+Data transferred:             613.19 MB
+Response time:                  0.00 secs
+Transaction rate:             179.87 trans/sec
+Throughput:                     0.24 MB/sec
+Concurrency:                    0.48
+Successful transactions:      450301
+Failed transactions:               0
+Longest transaction:            0.40
+Shortest transaction:           0.00
 ```
+
+### Without probability cache
+We see strong high value peak of load postgres
+
+![alt text](without_probability_cache.png "without probability cache")
+
+when we use probability cache the peak blured
+
+![alt text](with_probability_cache.png "with probability cache")

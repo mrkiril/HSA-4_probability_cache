@@ -98,7 +98,7 @@ class Config:
                     "handlers": self.log_handlers,
                 },
                 "aiohttp": {
-                    "level": "INFO",
+                    "level": "WARNING",
                     "propagate": False,
                     "handlers": self.log_handlers,
                 },

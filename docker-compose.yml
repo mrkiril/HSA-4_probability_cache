@@ -58,8 +58,6 @@ services:
       networks:
         - default
 
-
-
 ### ITG ###############
     telegraf:
       image: telegraf:1.15-alpine
@@ -106,7 +104,6 @@ services:
       networks:
         - default
 
-
     king_size_service:
       container_name: king_size_service
       build:
@@ -123,7 +120,7 @@ services:
         APP_HOST: 0.0.0.0
         APP_PORT: 4888
         LOG_LEVEL: DEBUG
-        USE_PROBABILISTIC_CACHE: "false"
+        USE_PROBABILISTIC_CACHE: "true"
 
         # postgres settings
         POSTGRES_PASSWORD: mysecretpassword

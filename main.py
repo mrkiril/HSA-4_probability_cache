@@ -15,6 +15,7 @@ from peewee import Proxy
 from peewee_asyncext import PooledPostgresqlExtDatabase
 
 from app.api.routes import routes
+from app.api.views import ArticleHandler
 from app.models import db_proxy, ExtendedDBManager, Article
 from settings import Config
 
@@ -51,6 +52,12 @@ async def on_startup(app):
 
     pool = redis.ConnectionPool(max_connections=10000, host=conf.redis_host, port=conf.redis_port)
     app["redis_cli"] = redis.Redis(connection_pool=pool, socket_timeout=1, socket_connect_timeout=0.1)
+
+    app["art_handler"] = ArticleHandler(
+        db=app["db"],
+        redis_cli=app["redis_cli"],
+        use_probabilistic_cache=conf.use_probabilistic_cache
+    )
 
 
 async def on_cleanup(app):

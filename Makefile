@@ -44,4 +44,4 @@ format:
 
 siege:
 	#siege -q -b -r 100000 --concurrent=50 --file=urls.txt
-	siege -v -b --concurrent=20 --file=urls.txt
+	siege -v --concurrent=50 --delay=0.55 --file=urls.txt
