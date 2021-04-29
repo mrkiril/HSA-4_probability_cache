@@ -1,14 +1,13 @@
-import linecache
-import tracemalloc
 import asyncio
 import logging
 import os
 import sys
 import redis
-
 import aiohttp_jinja2
 import jinja2
 import uvloop
+from rediscluster import RedisCluster
+
 from aiohttp import log, web
 from aiomisc import ThreadPoolExecutor
 from peewee import Proxy
@@ -50,8 +49,19 @@ async def on_startup(app):
     app["db"] = ExtendedDBManager(init_db(conf))
     app["db"].database.create_tables([Article], safe=True)
 
-    pool = redis.ConnectionPool(max_connections=10000, host=conf.redis_host, port=conf.redis_port)
-    app["redis_cli"] = redis.Redis(connection_pool=pool, socket_timeout=1, socket_connect_timeout=0.1)
+    # FOR SINGLE NODE REDIS
+    # pool = redis.ConnectionPool(max_connections=10000, host=conf.redis_host, port=conf.redis_port)
+    # app["redis_cli"] = redis.StrictRedis(connection_pool=pool, socket_timeout=1, socket_connect_timeout=0.5)
+
+    # Requires at least one node for cluster discovery. Multiple nodes is recommended.
+    startup_nodes = [
+        {"host": conf.redis_host,         "port": conf.redis_port},
+        {"host": conf.redis_replica_host, "port": conf.redis_replica_port}
+    ]
+    app["redis_cli"] = RedisCluster(
+        startup_nodes=startup_nodes, max_connections=10000, decode_responses=True,
+        socket_timeout=1, socket_connect_timeout=0.5
+    )
 
     app["art_handler"] = ArticleHandler(
         db=app["db"],

@@ -37,6 +37,11 @@ class Config:
         self.redis_host = os.environ.get("REDIS_HOST")
         self.redis_port = os.environ.get("REDIS_PORT")
 
+        self.redis_replica_host = os.environ.get("REDIS_REPLICA_HOST")
+        self.redis_replica_port = os.environ.get("REDIS_REPLICA_PORT")
+
+
+
         self.log_handlers = ["console"]
         self.log_format = "%(asctime)s-%(levelname)s-%(name)s::%(module)s|%(lineno)s:: %(message)s"
 

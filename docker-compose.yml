@@ -46,19 +46,50 @@ services:
         - default
 
 ### Redis ################################################
-    redis:
-      container_name: redis
-      image: redis:alpine
-      environment:
-        - ALLOW_EMPTY_PASSWORD=yes
-      ports:
-        - '6379:6379'
+    fix-redis-volume-ownership: # This service is to authorise redis-master with ownership permissions
+      image: 'bitnami/redis:latest'
+      user: root
+      command: chown -R 1001:1001 /bitnami
       volumes:
-        - redis-data:/data
+        - ./data/redis:/bitnami
+        - ./data/redis/conf/redis.conf:/opt/bitnami/redis/conf/redis.conf
       networks:
         - default
 
-### ITG ###############
+
+    redis_master: # Setting up master node
+      container_name: redis_master
+      image: 'bitnami/redis:latest'
+      command: /opt/bitnami/scripts/redis/run.sh
+      ports:
+        - '6329:6379' # Port 6329 will be exposed to handle connections from outside server
+      environment:
+        REDIS_REPLICATION_MODE: "master" # Assigning the node as a master
+        ALLOW_EMPTY_PASSWORD: "yes"      # No password authentication required/ provide password if needed
+      volumes:
+        - ./data/redis:/bitnami # Redis master data volume
+        - ./data/redis/conf/redis.conf:/opt/bitnami/redis/conf/redis.conf # Redis master configuration volume
+        - ./redis/redis.conf:/opt/bitnami/redis/mounted-etc/redis.conf
+      networks:
+        - default
+
+
+    redis_replica: # Setting up slave node
+      container_name: redis_replica
+      image: 'bitnami/redis:latest'
+      command: /opt/bitnami/scripts/redis/run.sh
+      ports:
+        - '6339:6379' # No port is exposed
+      depends_on:
+        - redis_master # will only start after the master has booted completely
+      environment:
+        REDIS_REPLICATION_MODE: "slave"   # Assigning the node as slave
+        REDIS_MASTER_HOST: "redis_master" # Host for the slave node is the redis-master node
+        REDIS_MASTER_PORT_NUMBER: "6379"  # Port number for local
+        ALLOW_EMPTY_PASSWORD: "yes"       # No password required to connect to node
+      networks:
+        - default
+  ### ITG ###############
     telegraf:
       image: telegraf:1.15-alpine
       volumes:
@@ -130,15 +161,19 @@ services:
         POSTGRES_HOST: db_postgres
 
         # redis settings. Required only if AUTH_METHOD equals 'redis'
-        REDIS_HOST: redis
-        REDIS_PORT: 6379
+        REDIS_HOST: "redis_master"
+        REDIS_PORT: 6329
+
+        REDIS_REPLICA_HOST: "redis_replica"
+        REDIS_REPLICA_PORT: 6339
+
         CACHE_TIME: 3600  # in seconds. Default is 600 sec (10 min)
 
       links:
-        - redis
+        - redis_master
         - db_postgres
       depends_on:
-        - redis
+        - redis_master
         - db_postgres
       networks:
         - default
